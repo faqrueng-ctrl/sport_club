@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using SportClubApp.Data;
 using SportClubApp.Models;
@@ -11,31 +12,57 @@ namespace SportClubApp.Services
             var report = new List<ReportRow>();
 
             using (var connection = Db.OpenConnection())
-            using (var command = connection.CreateCommand())
             {
-                command.CommandText = @"
-SELECT
-    a.full_name AS employee,
-    COUNT(ar.id) AS sales_count,
-    SUM(ISNULL(m.total_amount, 0)) AS sales_amount,
-    SUM(ISNULL(m.total_amount, 0)) * 0.05 AS salary_accrued
-FROM dbo.admin_report ar
-JOIN dbo.administrator a ON a.id = ar.admin_id
-JOIN dbo.membership m ON m.id = ar.membership_id
-GROUP BY a.full_name
-ORDER BY a.full_name;";
+                var schema = new SchemaHelper(connection);
 
-                using (var reader = command.ExecuteReader())
+                var tId = schema.FindIdColumn("Trainers") ?? "Id";
+                var tName = schema.FindColumn("Trainers", "FullName", "Name", "TrainerName");
+                var tFirst = schema.FindColumn("Trainers", "FirstName");
+                var tLast = schema.FindColumn("Trainers", "LastName");
+                var wTrainerId = schema.FindColumn("Workouts", "TrainerId");
+                var wId = schema.FindIdColumn("Workouts") ?? "Id";
+                var wPrice = schema.FindColumn("Workouts", "Price", "Cost", "Amount");
+                var mwWorkoutId = schema.FindColumn("MemberWorkouts", "WorkoutId");
+
+                if (wTrainerId == null || mwWorkoutId == null)
                 {
-                    while (reader.Read())
+                    return report;
+                }
+
+                var trainerExpr = tName != null
+                    ? $"t.{SchemaHelper.Q(tName)}"
+                    : (tFirst != null && tLast != null
+                        ? $"CONCAT(t.{SchemaHelper.Q(tFirst)}, N' ', t.{SchemaHelper.Q(tLast)})"
+                        : "N'Тренер'");
+
+                var priceExpr = wPrice != null ? $"TRY_CAST(w.{SchemaHelper.Q(wPrice)} AS decimal(18,2))" : "0";
+
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = $@"
+SELECT
+    CAST({trainerExpr} AS nvarchar(200)) AS employee,
+    COUNT(*) AS sales_count,
+    SUM({priceExpr}) AS sales_amount,
+    SUM({priceExpr}) * 0.10 AS salary_accrued
+FROM dbo.MemberWorkouts mw
+JOIN dbo.Workouts w ON mw.{SchemaHelper.Q(mwWorkoutId)} = w.{SchemaHelper.Q(wId)}
+JOIN dbo.Trainers t ON w.{SchemaHelper.Q(wTrainerId)} = t.{SchemaHelper.Q(tId)}
+GROUP BY {trainerExpr}
+ORDER BY {trainerExpr};";
+
+                    using (var reader = command.ExecuteReader())
                     {
-                        report.Add(new ReportRow
+                        while (reader.Read())
                         {
-                            Employee = reader.GetString(reader.GetOrdinal("employee")),
-                            SalesCount = reader.GetInt32(reader.GetOrdinal("sales_count")),
-                            SalesAmount = reader.GetDecimal(reader.GetOrdinal("sales_amount")),
-                            SalaryAccrued = reader.GetDecimal(reader.GetOrdinal("salary_accrued"))
-                        });
+                            report.Add(new ReportRow
+                            {
+                                Employee = Convert.ToString(reader["employee"]),
+                                SalesCount = reader["sales_count"] == DBNull.Value ? 0 : Convert.ToInt32(reader["sales_count"]),
+                                SalesAmount = reader["sales_amount"] == DBNull.Value ? 0 : Convert.ToDecimal(reader["sales_amount"]),
+                                SalaryAccrued = reader["salary_accrued"] == DBNull.Value ? 0 : Convert.ToDecimal(reader["salary_accrued"])
+                            });
+                        }
                     }
                 }
             }

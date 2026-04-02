@@ -48,6 +48,7 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="Data\Db.cs" />
+    <Compile Include="Data\SchemaHelper.cs" />
     <Compile Include="Models\TrainingSessionView.cs" />
     <Compile Include="Models\MembershipBookingRequest.cs" />
     <Compile Include="Models\ReportRow.cs" />

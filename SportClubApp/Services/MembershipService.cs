@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
@@ -23,20 +24,17 @@ namespace SportClubApp.Services
             {
                 try
                 {
-                    var clientId = UpsertClient(request, connection, transaction);
-                    var membershipId = InsertMembership(request, clientId, connection, transaction);
+                    var schema = new SchemaHelper(connection);
+                    var memberId = UpsertMember(request, connection, transaction, schema);
 
-                    foreach (var sessionId in request.SessionIds.Distinct())
+                    foreach (var workoutId in request.SessionIds.Distinct())
                     {
-                        _scheduleService.LockSeat(sessionId, connection, transaction);
-                        LinkMembershipToSession(membershipId, sessionId, connection, transaction);
+                        _scheduleService.LockSeat(workoutId, connection, transaction);
+                        InsertMemberWorkout(memberId, workoutId, connection, transaction, schema);
                     }
 
-                    CreatePaymentRecord(membershipId, connection, transaction);
-                    CreateAdminReportRow(request.AdministratorId, membershipId, connection, transaction);
-
                     transaction.Commit();
-                    return BuildPrintableCard(membershipId, request);
+                    return BuildPrintableCard(memberId, request);
                 }
                 catch
                 {
@@ -46,109 +44,123 @@ namespace SportClubApp.Services
             }
         }
 
-        private static int UpsertClient(MembershipBookingRequest request, SqlConnection connection, SqlTransaction tx)
+        private static int UpsertMember(MembershipBookingRequest request, SqlConnection connection, SqlTransaction tx, SchemaHelper schema)
         {
-            using (var command = connection.CreateCommand())
+            var idCol = schema.FindIdColumn("Members") ?? "Id";
+            var nameCol = schema.FindColumn("Members", "FullName", "Name", "MemberName") ?? "Name";
+            var phoneCol = schema.FindColumn("Members", "Phone", "PhoneNumber");
+            var emailCol = schema.FindColumn("Members", "Email", "Mail");
+            var startCol = schema.FindColumn("Members", "MembershipStartDate", "StartDate", "ValidFrom");
+            var endCol = schema.FindColumn("Members", "MembershipEndDate", "EndDate", "ValidTo");
+
+            var existingId = FindExistingMemberId(connection, tx, schema, idCol, phoneCol, emailCol, request);
+            if (existingId.HasValue)
             {
-                command.Transaction = tx;
-                command.CommandText = @"
-MERGE dbo.client AS target
-USING (SELECT @phone AS phone) AS source
-ON target.phone = source.phone
-WHEN MATCHED THEN
-    UPDATE SET full_name = @fullName, email = @email
-WHEN NOT MATCHED THEN
-    INSERT (full_name, phone, email) VALUES (@fullName, @phone, @email)
-OUTPUT inserted.id;";
+                var updates = new List<string> {$"{SchemaHelper.Q(nameCol)} = @fullName"};
+                if (phoneCol != null) updates.Add($"{SchemaHelper.Q(phoneCol)} = @phone");
+                if (emailCol != null) updates.Add($"{SchemaHelper.Q(emailCol)} = @email");
+                if (startCol != null) updates.Add($"{SchemaHelper.Q(startCol)} = @startDate");
+                if (endCol != null) updates.Add($"{SchemaHelper.Q(endCol)} = @endDate");
 
-                command.Parameters.AddWithValue("@fullName", request.ClientFullName);
-                command.Parameters.AddWithValue("@phone", request.ClientPhone);
-                command.Parameters.AddWithValue("@email", (object)request.ClientEmail ?? DBNull.Value);
+                using (var cmd = connection.CreateCommand())
+                {
+                    cmd.Transaction = tx;
+                    cmd.CommandText = $"UPDATE dbo.Members SET {string.Join(", ", updates)} WHERE {SchemaHelper.Q(idCol)} = @id";
+                    FillMemberParams(cmd, request);
+                    cmd.Parameters.AddWithValue("@id", existingId.Value);
+                    cmd.ExecuteNonQuery();
+                }
 
-                return (int)command.ExecuteScalar();
+                return existingId.Value;
+            }
+
+            var insertCols = new List<string> {SchemaHelper.Q(nameCol)};
+            var insertVals = new List<string> {@"@fullName"};
+            if (phoneCol != null) { insertCols.Add(SchemaHelper.Q(phoneCol)); insertVals.Add("@phone"); }
+            if (emailCol != null) { insertCols.Add(SchemaHelper.Q(emailCol)); insertVals.Add("@email"); }
+            if (startCol != null) { insertCols.Add(SchemaHelper.Q(startCol)); insertVals.Add("@startDate"); }
+            if (endCol != null) { insertCols.Add(SchemaHelper.Q(endCol)); insertVals.Add("@endDate"); }
+
+            using (var cmd = connection.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = $@"INSERT INTO dbo.Members ({string.Join(",", insertCols)})
+OUTPUT INSERTED.{SchemaHelper.Q(idCol)}
+VALUES ({string.Join(",", insertVals)});";
+                FillMemberParams(cmd, request);
+                return Convert.ToInt32(cmd.ExecuteScalar());
             }
         }
 
-        private static int InsertMembership(MembershipBookingRequest request, int clientId, SqlConnection connection, SqlTransaction tx)
+        private static int? FindExistingMemberId(SqlConnection connection, SqlTransaction tx, SchemaHelper schema, string idCol, string phoneCol, string emailCol, MembershipBookingRequest request)
         {
-            using (var command = connection.CreateCommand())
+            if (phoneCol == null && emailCol == null) return null;
+
+            using (var cmd = connection.CreateCommand())
             {
-                command.Transaction = tx;
-                command.CommandText = @"
-INSERT INTO dbo.membership
-(client_id, valid_from, valid_to, sold_by_admin_id, created_at)
-OUTPUT INSERTED.id
-VALUES
-(@clientId, @validFrom, @validTo, @adminId, SYSDATETIME());";
+                cmd.Transaction = tx;
+                var where = new List<string>();
+                if (phoneCol != null)
+                {
+                    where.Add($"{SchemaHelper.Q(phoneCol)} = @phone");
+                    cmd.Parameters.AddWithValue("@phone", request.ClientPhone ?? string.Empty);
+                }
+                if (emailCol != null)
+                {
+                    where.Add($"{SchemaHelper.Q(emailCol)} = @email");
+                    cmd.Parameters.AddWithValue("@email", (object)request.ClientEmail ?? DBNull.Value);
+                }
 
-                command.Parameters.AddWithValue("@clientId", clientId);
-                command.Parameters.AddWithValue("@validFrom", request.ValidFrom.Date);
-                command.Parameters.AddWithValue("@validTo", request.ValidTo.Date);
-                command.Parameters.AddWithValue("@adminId", request.AdministratorId);
-
-                return (int)command.ExecuteScalar();
+                cmd.CommandText = $"SELECT TOP(1) {SchemaHelper.Q(idCol)} FROM dbo.Members WHERE {string.Join(" OR ", where)}";
+                var value = cmd.ExecuteScalar();
+                if (value == null || value == DBNull.Value) return null;
+                return Convert.ToInt32(value);
             }
         }
 
-        private static void LinkMembershipToSession(int membershipId, int sessionId, SqlConnection connection, SqlTransaction tx)
+        private static void FillMemberParams(SqlCommand cmd, MembershipBookingRequest request)
         {
-            using (var command = connection.CreateCommand())
-            {
-                command.Transaction = tx;
-                command.CommandText = @"
-INSERT INTO dbo.booking_session
-(membership_id, session_id, booking_status, booked_at)
-VALUES
-(@membershipId, @sessionId, N'Забронировано', SYSDATETIME());";
+            cmd.Parameters.AddWithValue("@fullName", request.ClientFullName);
+            cmd.Parameters.AddWithValue("@phone", (object)request.ClientPhone ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@email", (object)request.ClientEmail ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@startDate", request.ValidFrom.Date);
+            cmd.Parameters.AddWithValue("@endDate", request.ValidTo.Date);
+        }
 
-                command.Parameters.AddWithValue("@membershipId", membershipId);
-                command.Parameters.AddWithValue("@sessionId", sessionId);
-                command.ExecuteNonQuery();
+        private static void InsertMemberWorkout(int memberId, int workoutId, SqlConnection connection, SqlTransaction tx, SchemaHelper schema)
+        {
+            var memberCol = schema.FindColumn("MemberWorkouts", "MemberId") ?? "MemberId";
+            var workoutCol = schema.FindColumn("MemberWorkouts", "WorkoutId") ?? "WorkoutId";
+            var dateCol = schema.FindColumn("MemberWorkouts", "CreatedAt", "BookingDate", "AssignedAt");
+
+            using (var cmd = connection.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                var cols = new List<string> {SchemaHelper.Q(memberCol), SchemaHelper.Q(workoutCol)};
+                var vals = new List<string> {"@memberId", "@workoutId"};
+                if (dateCol != null)
+                {
+                    cols.Add(SchemaHelper.Q(dateCol));
+                    vals.Add("SYSDATETIME()");
+                }
+
+                cmd.CommandText = $"INSERT INTO dbo.MemberWorkouts ({string.Join(",", cols)}) VALUES ({string.Join(",", vals)});";
+                cmd.Parameters.AddWithValue("@memberId", memberId);
+                cmd.Parameters.AddWithValue("@workoutId", workoutId);
+                cmd.ExecuteNonQuery();
             }
         }
 
-        private static void CreatePaymentRecord(int membershipId, SqlConnection connection, SqlTransaction tx)
-        {
-            using (var command = connection.CreateCommand())
-            {
-                command.Transaction = tx;
-                command.CommandText = @"
-INSERT INTO dbo.payment
-(membership_id, paid_at, payment_status, transfer_to_accounting_status)
-VALUES
-(@membershipId, SYSDATETIME(), N'Оплачено', N'Передано в бухгалтерию');";
-                command.Parameters.AddWithValue("@membershipId", membershipId);
-                command.ExecuteNonQuery();
-            }
-        }
-
-        private static void CreateAdminReportRow(int adminId, int membershipId, SqlConnection connection, SqlTransaction tx)
-        {
-            using (var command = connection.CreateCommand())
-            {
-                command.Transaction = tx;
-                command.CommandText = @"
-INSERT INTO dbo.admin_report
-(admin_id, membership_id, created_at)
-VALUES
-(@adminId, @membershipId, SYSDATETIME());";
-
-                command.Parameters.AddWithValue("@adminId", adminId);
-                command.Parameters.AddWithValue("@membershipId", membershipId);
-                command.ExecuteNonQuery();
-            }
-        }
-
-        private static string BuildPrintableCard(int membershipId, MembershipBookingRequest request)
+        private static string BuildPrintableCard(int memberId, MembershipBookingRequest request)
         {
             var sb = new StringBuilder();
             sb.AppendLine("КЛИЕНТСКАЯ КАРТА СПОРТИВНОГО КЛУБА");
-            sb.AppendLine($"№ абонемента: {membershipId}");
+            sb.AppendLine($"ID клиента: {memberId}");
             sb.AppendLine($"Клиент: {request.ClientFullName}");
             sb.AppendLine($"Контакты: {request.ClientPhone}, {request.ClientEmail}");
-            sb.AppendLine($"Период: {request.ValidFrom:dd.MM.yyyy} - {request.ValidTo:dd.MM.yyyy}");
+            sb.AppendLine($"Период абонемента: {request.ValidFrom:dd.MM.yyyy} - {request.ValidTo:dd.MM.yyyy}");
             sb.AppendLine($"Выбрано тренировок: {request.SessionIds.Count}");
-            sb.AppendLine("Статус: Оплачено и забронировано");
+            sb.AppendLine("Статус: место забронировано");
             return sb.ToString();
         }
     }

@@ -42,7 +42,7 @@ namespace SportClubApp.Forms
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    "Отчет не сформирован. Проверьте таблицы membership/admin_report/administrator.\n\n" + ex.Message,
+                    "Отчет не сформирован. Проверьте таблицы MemberWorkouts/Workouts/Trainers.\n\n" + ex.Message,
                     "Ошибка",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);

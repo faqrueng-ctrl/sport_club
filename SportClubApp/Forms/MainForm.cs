@@ -71,7 +71,7 @@ namespace SportClubApp.Forms
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    "Ошибка загрузки расписания. Проверьте таблицы БД sport_club и имена колонок.\n\n" + ex.Message,
+                    "Ошибка загрузки расписания. Проверьте таблицы Workouts/Trainers/WorkoutCategories/MemberWorkouts в БД sport_club.\n\n" + ex.Message,
                     "Ошибка",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);

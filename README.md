@@ -1,27 +1,28 @@
 # SportClubApp (.NET Framework 4.8, WinForms)
 
-Приложение для администраторов спортивного клуба:
-- просмотр актуального расписания;
-- продажа абонементов;
-- бронирование мест на тренировках с блокировкой;
-- фиксация оплаты на ресепшн и передачи денег в бухгалтерию;
-- отчетность администраторов и расчет начислений.
+Приложение переписано под вашу БД `sport_club` с таблицами:
+- `dbo.Exercises`
+- `dbo.Members`
+- `dbo.MemberWorkouts`
+- `dbo.Reviews`
+- `dbo.Tags`
+- `dbo.Trainers`
+- `dbo.WorkoutCategories`
+- `dbo.WorkoutExercises`
+- `dbo.WorkoutImages`
+- `dbo.Workouts`
+- `dbo.WorkoutSteps`
+- `dbo.WorkoutTags`
 
 ## Подключение к БД
-Используется LocalDB:
-
 `Data Source=(localdb)\mssqllocaldb;Initial Catalog=sport_club;Integrated Security=True`
 
-## Принятая структура таблиц
-Приложение ожидает следующие таблицы:
-- `training_type(id, name)`
-- `coach(id, full_name)`
-- `training_session(id, training_type_id, coach_id, start_at, duration_minutes, price, capacity, locked_seats, is_active)`
-- `client(id, full_name, phone, email)`
-- `membership(id, client_id, valid_from, valid_to, sold_by_admin_id, total_amount, created_at)`
-- `booking_session(id, membership_id, session_id, booking_status, booked_at)`
-- `payment(id, membership_id, paid_at, payment_status, transfer_to_accounting_status)`
-- `administrator(id, full_name)`
-- `admin_report(id, admin_id, membership_id, created_at)`
+## Что делает приложение
+- Загружает расписание из `Workouts` + `Trainers` + `WorkoutCategories`.
+- Показывает занятые места по числу записей в `MemberWorkouts`.
+- Продает абонемент: создает/обновляет `Members` и бронирует тренировки в `MemberWorkouts`.
+- Блокирует двойную запись при ограничении мест (если в `Workouts` есть поле вместимости, например `Capacity/MaxMembers/MaxParticipants/Spots`).
+- Формирует отчет по тренерам на основе `MemberWorkouts`.
 
-Если структура вашей БД на скриншоте отличается по именам таблиц/колонок — скорректируйте SQL в `Services/*`.
+## Важно
+Код использует динамическое определение имен колонок через `INFORMATION_SCHEMA.COLUMNS`, чтобы работать с реальной схемой (например `Name`/`WorkoutName`, `FullName` или `FirstName+LastName`, и т.д.).

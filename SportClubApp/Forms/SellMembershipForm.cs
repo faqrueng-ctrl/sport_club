@@ -61,7 +61,7 @@ namespace SportClubApp.Forms
             Controls.Add(_validTo);
 
             y += 35;
-            Controls.Add(CreateLabel("ID администратора", 20, y));
+            Controls.Add(CreateLabel("ID сотрудника", 20, y));
             _adminId.SetBounds(180, y, 100, 24);
             _adminId.Minimum = 1;
             _adminId.Maximum = 9999;
@@ -138,7 +138,7 @@ namespace SportClubApp.Forms
             public SessionWrapper(TrainingSessionView session)
             {
                 SessionId = session.SessionId;
-                _view = $"#{session.SessionId} | {session.TrainingType} | {session.CoachFullName} | {session.StartAt} | " +
+                _view = $"#{session.SessionId} | {session.Workout} | {session.Trainer} | {session.StartAt} | " +
                         $"{session.DurationMinutes} мин | {session.Price:C} | мест: {session.FreeSeats}";
             }
 
