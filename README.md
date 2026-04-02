@@ -1,28 +1,30 @@
-# SportClubApp (.NET Framework 4.8, WinForms)
+# SportClubApp (WinForms, .NET Framework 4.8)
 
-Приложение переписано под вашу БД `sport_club` с таблицами:
-- `dbo.Exercises`
-- `dbo.Members`
-- `dbo.MemberWorkouts`
-- `dbo.Reviews`
-- `dbo.Tags`
-- `dbo.Trainers`
-- `dbo.WorkoutCategories`
-- `dbo.WorkoutExercises`
-- `dbo.WorkoutImages`
-- `dbo.Workouts`
-- `dbo.WorkoutSteps`
-- `dbo.WorkoutTags`
+Реализована роль-ориентированная CRM/Shop система с требованиями:
 
-## Подключение к БД
-`Data Source=(localdb)\mssqllocaldb;Initial Catalog=sport_club;Integrated Security=True`
+- Регистрация и авторизация пользователей (логин по email/телефону).
+- Роли: Гость, Пользователь, Менеджер, Администратор.
+- Каталог товаров/услуг с поиском, сортировкой, корзиной и заказами.
+- Менеджер: CRUD (без удаления).
+- Администратор: полный CRUD + управление ролями пользователей.
+- Выделение товаров с ценой > 1000.
+- Отображение старой цены со скидкой.
+- Загрузка изображений через OpenFileDialog в папку `ProductImages` с сохранением относительного пути.
+- Бизнес-ограничение при удалении товара из заказов: 
+  `Невозможно удалить товар, так как он присутствует в одном или нескольких заказах.`
+- Глобальная обработка исключений.
 
-## Что делает приложение
-- Загружает расписание из `Workouts` + `Trainers` + `WorkoutCategories`.
-- Показывает занятые места по числу записей в `MemberWorkouts`.
-- Продает абонемент: создает/обновляет `Members` и бронирует тренировки в `MemberWorkouts`.
-- Блокирует двойную запись при ограничении мест (если в `Workouts` есть поле вместимости, например `Capacity/MaxMembers/MaxParticipants/Spots`).
-- Формирует отчет по тренерам на основе `MemberWorkouts`.
+## БД
+Подключение: `(localdb)\mssqllocaldb`, БД `sport_club`.
 
-## Важно
-Код использует динамическое определение имен колонок через `INFORMATION_SCHEMA.COLUMNS`, чтобы работать с реальной схемой (например `Name`/`WorkoutName`, `FullName` или `FirstName+LastName`, и т.д.).
+При первом запуске приложение автоматически создает (если отсутствуют):
+- `Users`
+- `Products`
+- `CartItems`
+- `Orders`
+- `OrderItems`
+
+Также создается учетная запись администратора:
+- email: `admin@sportclub.local`
+- phone: `+70000000000`
+- пароль: `admin` (SHA256-хэш уже сохранен)
