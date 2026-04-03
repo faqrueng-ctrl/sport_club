@@ -1,6 +1,5 @@
 using System;
 using System.Drawing;
-using System.Linq;
 using System.Windows.Forms;
 using SportClubApp.Models;
 using SportClubApp.Services;
@@ -15,10 +14,11 @@ namespace SportClubApp.Forms
         private readonly CatalogService _catalogService = new CatalogService();
         private readonly OrderService _orderService = new OrderService();
 
-        private readonly DataGridView _catalogGrid = new DataGridView { Dock = DockStyle.Fill, AutoGenerateColumns = true };
-        private readonly DataGridView _cartGrid = new DataGridView { Dock = DockStyle.Fill, AutoGenerateColumns = true };
-        private readonly DataGridView _ordersGrid = new DataGridView { Dock = DockStyle.Fill, AutoGenerateColumns = true };
-        private readonly DataGridView _usersGrid = new DataGridView { Dock = DockStyle.Fill, AutoGenerateColumns = true };
+        private readonly DataGridView _catalogGrid = BuildGrid();
+        private readonly DataGridView _managerGrid = BuildGrid();
+        private readonly DataGridView _cartGrid = BuildGrid();
+        private readonly DataGridView _ordersGrid = BuildGrid();
+        private readonly DataGridView _usersGrid = BuildGrid();
 
         private readonly TextBox _search = new TextBox();
         private readonly ComboBox _sort = new ComboBox();
@@ -27,8 +27,11 @@ namespace SportClubApp.Forms
         {
             _user = user;
             Text = $"Sport Club CRM — {_user.FullName} ({_user.Role})";
-            Width = 1280; Height = 800; StartPosition = FormStartPosition.CenterScreen;
+            Width = 1360;
+            Height = 860;
+            StartPosition = FormStartPosition.CenterScreen;
             Icon = SystemIcons.Application;
+            BackColor = Color.WhiteSmoke;
             UiTheme.Apply(this);
 
             var tabs = new TabControl { Dock = DockStyle.Fill };
@@ -43,20 +46,44 @@ namespace SportClubApp.Forms
             LoadAll();
         }
 
+        private static DataGridView BuildGrid()
+        {
+            return new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                AutoGenerateColumns = true,
+                AllowUserToAddRows = false,
+                ReadOnly = true,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                RowHeadersVisible = false,
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+        }
+
         private TabPage CreateCatalogTab()
         {
             var tab = new TabPage("Каталог");
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2 };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-            var panel = new FlowLayoutPanel { Dock = DockStyle.Fill };
-            _sort.Items.AddRange(new object[] { "Name", "Price" }); _sort.SelectedIndex = 0;
-            var refresh = new Button { Text = "Обновить" }; refresh.Click += (_, __) => LoadCatalog();
-            var add = new Button { Text = "В корзину" }; add.Click += (_, __) => AddSelectedToCart();
-            panel.Controls.Add(new Label { Text = "Поиск" }); panel.Controls.Add(_search);
-            panel.Controls.Add(new Label { Text = "Сортировка" }); panel.Controls.Add(_sort);
-            panel.Controls.Add(refresh); panel.Controls.Add(add);
+            var panel = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(8) };
+            _sort.Items.AddRange(new object[] { "Name", "Price" });
+            _sort.SelectedIndex = 0;
+            _search.Width = 180;
+            _search.MaxLength = 100;
+
+            var refresh = Btn("Обновить", (_, __) => LoadCatalog());
+            var add = Btn("В корзину", (_, __) => AddSelectedToCart());
+
+            panel.Controls.Add(new Label { Text = "Поиск", Width = 50, TextAlign = ContentAlignment.MiddleLeft });
+            panel.Controls.Add(_search);
+            panel.Controls.Add(new Label { Text = "Сортировка", Width = 85, TextAlign = ContentAlignment.MiddleLeft });
+            panel.Controls.Add(_sort);
+            panel.Controls.Add(refresh);
+            panel.Controls.Add(add);
 
             root.Controls.Add(panel, 0, 0);
             root.Controls.Add(_catalogGrid, 0, 1);
@@ -68,12 +95,11 @@ namespace SportClubApp.Forms
         {
             var tab = new TabPage("Корзина");
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2 };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            var panel = new FlowLayoutPanel { Dock = DockStyle.Fill };
-            var remove = new Button { Text = "Удалить" }; remove.Click += (_, __) => RemoveFromCart();
-            var checkout = new Button { Text = "Оформить заказ" }; checkout.Click += (_, __) => Checkout();
-            panel.Controls.Add(remove); panel.Controls.Add(checkout);
+            var panel = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(8) };
+            panel.Controls.Add(Btn("Удалить", (_, __) => RemoveFromCart()));
+            panel.Controls.Add(Btn("Оформить заказ", (_, __) => Checkout()));
             root.Controls.Add(panel, 0, 0);
             root.Controls.Add(_cartGrid, 0, 1);
             tab.Controls.Add(root);
@@ -90,21 +116,21 @@ namespace SportClubApp.Forms
         private TabPage CreateProfileTab()
         {
             var tab = new TabPage("Личный кабинет");
-            var name = new TextBox { Text = _user.FullName, Width = 260 };
-            var email = new TextBox { Text = _user.Email, Width = 260 };
-            var phone = new TextBox { Text = _user.Phone, Width = 260 };
-            var role = new TextBox { Text = _user.Role, Width = 260, ReadOnly = true };
-            var p = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, Padding = new Padding(20) };
-            p.Controls.Add(new Label { Text = "ФИО" }); p.Controls.Add(name);
-            p.Controls.Add(new Label { Text = "Email" }); p.Controls.Add(email);
-            p.Controls.Add(new Label { Text = "Телефон" }); p.Controls.Add(phone);
-            p.Controls.Add(new Label { Text = "Роль" }); p.Controls.Add(role);
-            var save = new Button { Text = "Сохранить профиль", Width = 220, Height = 34 };
-            save.Click += (_, __) =>
-            {
-                TryRun(() => _authService.UpdateProfile(_user, name.Text, email.Text, phone.Text), "Профиль сохранён");
-            };
-            p.Controls.Add(save);
+            var name = new TextBox { Text = _user.FullName, Width = 360, MaxLength = 120 };
+            var email = new TextBox { Text = _user.Email, Width = 360, MaxLength = 120 };
+            var phone = new TextBox { Text = _user.Phone, Width = 360, MaxLength = 20 };
+            var role = new TextBox { Text = _user.Role, Width = 360, ReadOnly = true };
+            name.KeyPress += NameKeyPress;
+            phone.KeyPress += PhoneKeyPress;
+
+            var p = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(30), ColumnCount = 2 };
+            p.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+            p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            p.Controls.Add(new Label { Text = "ФИО", AutoSize = true }, 0, 0); p.Controls.Add(name, 1, 0);
+            p.Controls.Add(new Label { Text = "Email", AutoSize = true }, 0, 1); p.Controls.Add(email, 1, 1);
+            p.Controls.Add(new Label { Text = "Телефон", AutoSize = true }, 0, 2); p.Controls.Add(phone, 1, 2);
+            p.Controls.Add(new Label { Text = "Роль", AutoSize = true }, 0, 3); p.Controls.Add(role, 1, 3);
+            p.Controls.Add(Btn("Сохранить профиль", (_, __) => TryRun(() => _authService.UpdateProfile(_user, name.Text, email.Text, phone.Text), "Профиль сохранён")), 1, 4);
             tab.Controls.Add(p);
             return tab;
         }
@@ -112,23 +138,17 @@ namespace SportClubApp.Forms
         private TabPage CreateManagerTab()
         {
             var tab = new TabPage("Менеджер");
-            var panel = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 44 };
-            var add = new Button { Text = "Добавить" }; add.Click += (_, __) => EditProduct(null);
-            var edit = new Button { Text = "Изменить" }; edit.Click += (_, __) => EditSelectedProduct();
-            panel.Controls.Add(add); panel.Controls.Add(edit);
-            if (_user.IsAdmin)
-            {
-                var del = new Button { Text = "Удалить" }; del.Click += (_, __) => DeleteSelectedProduct();
-                panel.Controls.Add(del);
-            }
-
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2 };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+            var panel = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(8) };
+            panel.Controls.Add(Btn("Добавить", (_, __) => EditProduct(null)));
+            panel.Controls.Add(Btn("Изменить", (_, __) => EditSelectedProduct()));
+            if (_user.IsAdmin) panel.Controls.Add(Btn("Удалить", (_, __) => DeleteSelectedProduct()));
+
             root.Controls.Add(panel, 0, 0);
-            var allTable = new DataGridView { Dock = DockStyle.Fill, AutoGenerateColumns = true };
-            allTable.DataSource = _catalogService.GetProducts();
-            root.Controls.Add(allTable, 0, 1);
+            root.Controls.Add(_managerGrid, 0, 1);
             tab.Controls.Add(root);
             return tab;
         }
@@ -137,18 +157,22 @@ namespace SportClubApp.Forms
         {
             var tab = new TabPage("Пользователи");
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2 };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            var panel = new FlowLayoutPanel { Dock = DockStyle.Fill };
-            var updateRole = new Button { Text = "Сделать менеджером" };
-            updateRole.Click += (_, __) => ChangeUserRole("Менеджер");
-            var makeUser = new Button { Text = "Сделать пользователем" };
-            makeUser.Click += (_, __) => ChangeUserRole("Пользователь");
-            panel.Controls.Add(updateRole); panel.Controls.Add(makeUser);
+            var panel = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(8) };
+            panel.Controls.Add(Btn("Сделать менеджером", (_, __) => ChangeUserRole("Менеджер")));
+            panel.Controls.Add(Btn("Сделать пользователем", (_, __) => ChangeUserRole("Пользователь")));
             root.Controls.Add(panel, 0, 0);
             root.Controls.Add(_usersGrid, 0, 1);
             tab.Controls.Add(root);
             return tab;
+        }
+
+        private static Button Btn(string text, EventHandler onClick)
+        {
+            var b = new Button { Text = text, Height = 34, Width = 150, FlatStyle = FlatStyle.Flat, BackColor = Color.White };
+            b.Click += onClick;
+            return b;
         }
 
         private void LoadAll()
@@ -163,22 +187,49 @@ namespace SportClubApp.Forms
         {
             var list = _catalogService.GetProducts(_search.Text, _sort.Text);
             _catalogGrid.DataSource = list;
-            foreach (DataGridViewRow row in _catalogGrid.Rows)
+            _managerGrid.DataSource = _catalogService.GetProducts(_search.Text, _sort.Text);
+            FormatProductGrid(_catalogGrid);
+            FormatProductGrid(_managerGrid);
+        }
+
+        private static void FormatProductGrid(DataGridView grid)
+        {
+            if (grid.Columns.Count == 0) return;
+
+            SetHeader(grid, nameof(ProductItem.ProductId), "ID", 60);
+            SetHeader(grid, nameof(ProductItem.Name), "Наименование", 220);
+            SetHeader(grid, nameof(ProductItem.Category), "Категория", 130);
+            SetHeader(grid, nameof(ProductItem.Price), "Цена", 100);
+            SetHeader(grid, nameof(ProductItem.OldPrice), "Старая цена", 110);
+            SetHeader(grid, nameof(ProductItem.DiscountPercent), "% скидки", 90);
+            SetHeader(grid, nameof(ProductItem.ImagePath), "Путь к изображению", 220);
+            SetHeader(grid, nameof(ProductItem.StockQty), "Остаток", 90);
+            SetHeader(grid, nameof(ProductItem.DiscountedPrice), "Цена со скидкой", 120);
+
+            foreach (DataGridViewRow row in grid.Rows)
             {
                 if (row.DataBoundItem is ProductItem p)
                 {
                     if (p.Price > 1000)
                     {
                         row.DefaultCellStyle.BackColor = Color.LemonChiffon;
-                        row.DefaultCellStyle.Font = new Font(_catalogGrid.Font, FontStyle.Bold);
+                        row.DefaultCellStyle.Font = new Font(grid.Font, FontStyle.Bold);
                     }
 
-                    if (p.OldPrice.HasValue && p.DiscountPercent.HasValue)
+                    if (p.OldPrice.HasValue && p.DiscountPercent.HasValue && grid.Columns.Contains(nameof(ProductItem.OldPrice)))
                     {
-                        row.Cells[nameof(ProductItem.OldPrice)].Style.Font = new Font(_catalogGrid.Font, FontStyle.Strikeout);
+                        row.Cells[nameof(ProductItem.OldPrice)].Style.Font = new Font(grid.Font, FontStyle.Strikeout);
                     }
                 }
             }
+        }
+
+        private static void SetHeader(DataGridView grid, string col, string title, int minWidth)
+        {
+            if (!grid.Columns.Contains(col)) return;
+            grid.Columns[col].HeaderText = title;
+            grid.Columns[col].MinimumWidth = minWidth;
+            grid.Columns[col].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
         }
 
         private void AddSelectedToCart()
@@ -219,13 +270,13 @@ namespace SportClubApp.Forms
 
         private void EditSelectedProduct()
         {
-            if (!(_catalogGrid.CurrentRow?.DataBoundItem is ProductItem p)) return;
+            if (!(_managerGrid.CurrentRow?.DataBoundItem is ProductItem p)) return;
             EditProduct(p);
         }
 
         private void DeleteSelectedProduct()
         {
-            if (!(_catalogGrid.CurrentRow?.DataBoundItem is ProductItem p)) return;
+            if (!(_managerGrid.CurrentRow?.DataBoundItem is ProductItem p)) return;
             TryRun(() => _catalogService.DeleteProduct(p.ProductId), "Удалено");
             LoadCatalog();
         }
@@ -243,6 +294,9 @@ namespace SportClubApp.Forms
                     da.Fill(table);
                 }
                 _usersGrid.DataSource = table;
+                if (_usersGrid.Columns.Contains("FullName")) _usersGrid.Columns["FullName"].HeaderText = "ФИО";
+                if (_usersGrid.Columns.Contains("CreatedAt")) _usersGrid.Columns["CreatedAt"].HeaderText = "Создан";
+                _usersGrid.AutoResizeColumns(DataGridViewAutoSizeColumnsMode.AllCells);
             }
         }
 
@@ -268,6 +322,18 @@ namespace SportClubApp.Forms
         {
             try { action(); MessageBox.Show(success); }
             catch (Exception ex) { MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        }
+
+        private static void NameKeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (char.IsControl(e.KeyChar)) return;
+            if (!(char.IsLetter(e.KeyChar) || e.KeyChar == ' ' || e.KeyChar == '-')) e.Handled = true;
+        }
+
+        private static void PhoneKeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (char.IsControl(e.KeyChar)) return;
+            if (!(char.IsDigit(e.KeyChar) || e.KeyChar == '+' || e.KeyChar == '(' || e.KeyChar == ')' || e.KeyChar == '-' || e.KeyChar == ' ')) e.Handled = true;
         }
     }
 }

@@ -23,28 +23,34 @@ namespace SportClubApp.Forms
         {
             Product = item ?? new ProductItem();
             Text = "Товар / услуга";
-            Width = 520; Height = 420; StartPosition = FormStartPosition.CenterParent;
+            Width = 620;
+            Height = 460;
+            StartPosition = FormStartPosition.CenterParent;
             Icon = SystemIcons.Information;
+            BackColor = Color.White;
 
-            var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 8, Padding = new Padding(12) };
-            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
-            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60));
+            var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 8, Padding = new Padding(16) };
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+            _name.MaxLength = 150;
+            _cat.MaxLength = 80;
 
             AddRow(grid, "Название", _name, 0);
             AddRow(grid, "Категория", _cat, 1);
-            _price.Maximum = 1000000; AddRow(grid, "Цена", _price, 2);
-            _oldPrice.Maximum = 1000000; AddRow(grid, "Старая цена", _oldPrice, 3);
+            _price.Maximum = 1000000; _price.DecimalPlaces = 2; AddRow(grid, "Цена", _price, 2);
+            _oldPrice.Maximum = 1000000; _oldPrice.DecimalPlaces = 2; AddRow(grid, "Старая цена", _oldPrice, 3);
             _disc.Maximum = 100; AddRow(grid, "% скидки", _disc, 4);
             _stock.Maximum = 100000; AddRow(grid, "Остаток", _stock, 5);
 
             var imgPanel = new FlowLayoutPanel { Dock = DockStyle.Fill };
-            _image.Width = 180;
-            var browse = new Button { Text = "Выбрать..." };
+            _image.Width = 260; _image.MaxLength = 260;
+            var browse = new Button { Text = "Выбрать...", Height = 30 };
             browse.Click += (_, __) => SelectImage();
             imgPanel.Controls.Add(_image); imgPanel.Controls.Add(browse);
             AddRow(grid, "Изображение", imgPanel, 6);
 
-            var save = new Button { Text = "Сохранить", Dock = DockStyle.Fill, Height = 34 };
+            var save = new Button { Text = "Сохранить", Dock = DockStyle.Fill, Height = 36, BackColor = Color.FromArgb(37, 99, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             save.Click += (_, __) => SaveAndClose();
             AddRow(grid, "", save, 7);
 

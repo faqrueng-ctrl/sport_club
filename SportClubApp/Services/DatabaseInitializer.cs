@@ -17,10 +17,18 @@ BEGIN
       FullName NVARCHAR(120) NOT NULL,
       Email NVARCHAR(120) NOT NULL UNIQUE,
       Phone NVARCHAR(40) NOT NULL UNIQUE,
-      PasswordHash NVARCHAR(256) NOT NULL,
+      [Password] NVARCHAR(100) NOT NULL,
       Role NVARCHAR(30) NOT NULL DEFAULT N'Пользователь',
       CreatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME()
     );
+END
+
+IF COL_LENGTH('dbo.Users','Password') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD [Password] NVARCHAR(100) NULL;
+    UPDATE dbo.Users
+    SET [Password] = CASE WHEN Role = N'Администратор' THEN N'admin' ELSE N'123456' END
+    WHERE [Password] IS NULL;
 END
 
 IF OBJECT_ID('dbo.Products','U') IS NULL
@@ -71,8 +79,8 @@ END
 
 IF NOT EXISTS(SELECT 1 FROM dbo.Users WHERE Role = N'Администратор')
 BEGIN
-    INSERT INTO dbo.Users (FullName,Email,Phone,PasswordHash,Role)
-    VALUES (N'Главный Администратор',N'admin@sportclub.local',N'+70000000000',N'8C6976E5B5410415BDE908BD4DEE15DFB167A9C873FC4BB8A81F6F2AB448A918',N'Администратор');
+    INSERT INTO dbo.Users (FullName,Email,Phone,[Password],Role)
+    VALUES (N'Главный Администратор',N'admin@sportclub.local',N'+70000000000',N'admin',N'Администратор');
 END
 
 IF NOT EXISTS(SELECT 1 FROM dbo.Products)

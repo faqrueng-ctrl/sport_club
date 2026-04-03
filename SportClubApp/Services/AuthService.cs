@@ -1,7 +1,4 @@
 using System;
-using System.Data.SqlClient;
-using System.Security.Cryptography;
-using System.Text;
 using SportClubApp.Data;
 using SportClubApp.Models;
 using SportClubApp.Utils;
@@ -20,12 +17,12 @@ namespace SportClubApp.Services
             using (var conn = Db.OpenConnection())
             using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = @"INSERT INTO dbo.Users(FullName,Email,Phone,PasswordHash,Role)
-VALUES(@name,@email,@phone,@hash,N'Пользователь');";
+                cmd.CommandText = @"INSERT INTO dbo.Users(FullName,Email,Phone,[Password],Role)
+VALUES(@name,@email,@phone,@pass,N'Пользователь');";
                 cmd.Parameters.AddWithValue("@name", fullName.Trim());
                 cmd.Parameters.AddWithValue("@email", email.Trim());
                 cmd.Parameters.AddWithValue("@phone", phone.Trim());
-                cmd.Parameters.AddWithValue("@hash", Hash(password));
+                cmd.Parameters.AddWithValue("@pass", password);
                 cmd.ExecuteNonQuery();
             }
         }
@@ -35,15 +32,15 @@ VALUES(@name,@email,@phone,@hash,N'Пользователь');";
             using (var conn = Db.OpenConnection())
             using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = @"SELECT TOP(1) Id,FullName,Email,Phone,Role,PasswordHash
+                cmd.CommandText = @"SELECT TOP(1) Id,FullName,Email,Phone,Role,[Password]
 FROM dbo.Users WHERE Email=@login OR Phone=@login";
                 cmd.Parameters.AddWithValue("@login", login.Trim());
 
                 using (var reader = cmd.ExecuteReader())
                 {
                     if (!reader.Read()) throw new InvalidOperationException("Пользователь не найден.");
-                    var hash = reader.GetString(reader.GetOrdinal("PasswordHash"));
-                    if (!string.Equals(hash, Hash(password), StringComparison.OrdinalIgnoreCase))
+                    var stored = reader["Password"] == DBNull.Value ? string.Empty : Convert.ToString(reader["Password"]);
+                    if (!string.Equals(stored, password, StringComparison.Ordinal))
                     {
                         throw new InvalidOperationException("Неверный пароль.");
                     }
@@ -74,17 +71,6 @@ FROM dbo.Users WHERE Email=@login OR Phone=@login";
                 cmd.Parameters.AddWithValue("@phone", phone.Trim());
                 cmd.Parameters.AddWithValue("@id", user.UserId);
                 cmd.ExecuteNonQuery();
-            }
-        }
-
-        private static string Hash(string value)
-        {
-            using (var sha = SHA256.Create())
-            {
-                var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(value));
-                var sb = new StringBuilder();
-                foreach (var b in bytes) sb.Append(b.ToString("X2"));
-                return sb.ToString();
             }
         }
     }
