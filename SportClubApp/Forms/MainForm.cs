@@ -220,14 +220,22 @@ namespace SportClubApp.Forms
                 {
                     if (p.Price > 1000)
                     {
-                        row.DefaultCellStyle.BackColor = Color.LemonChiffon;
-                        row.DefaultCellStyle.Font = new Font(grid.Font ?? Control.DefaultFont, FontStyle.Bold);
+                        try
+                        {
+                            row.DefaultCellStyle.BackColor = Color.LemonChiffon;
+                            row.DefaultCellStyle.Font = new Font(grid.Font ?? Control.DefaultFont, FontStyle.Bold);
+                        }
+                        catch { }
                     }
 
                     if (p.OldPrice.HasValue && p.DiscountPercent.HasValue && grid.Columns.Contains(nameof(ProductItem.OldPrice)))
                     {
-                        var cell = row.Cells[nameof(ProductItem.OldPrice)];
-                        if (cell != null) cell.Style.Font = new Font(grid.Font ?? Control.DefaultFont, FontStyle.Strikeout);
+                        try
+                        {
+                            var cell = row.Cells[nameof(ProductItem.OldPrice)];
+                            if (cell != null) cell.Style.Font = new Font(grid.Font ?? Control.DefaultFont, FontStyle.Strikeout);
+                        }
+                        catch { }
                     }
                 }
             }
@@ -241,8 +249,6 @@ namespace SportClubApp.Forms
             try
             {
                 column.HeaderText = title ?? col;
-                column.MinimumWidth = Math.Max(40, minWidth);
-                column.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
             }
             catch
             {
