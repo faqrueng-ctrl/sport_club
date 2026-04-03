@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{A21D46D8-B612-4D6B-ABBB-C9ED893A4A30}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>SportClubApp</RootNamespace>
+    <AssemblyName>SportClubApp</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="Data\Db.cs" />
+    <Compile Include="Forms\AuthForm.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Forms\MainForm.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Forms\ProductEditForm.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Models\CartItem.cs" />
+    <Compile Include="Models\OrderHistoryItem.cs" />
+    <Compile Include="Models\ProductItem.cs" />
+    <Compile Include="Models\RoleCodes.cs" />
+    <Compile Include="Models\UserContext.cs" />
+    <Compile Include="Services\AuthService.cs" />
+    <Compile Include="Services\CatalogService.cs" />
+    <Compile Include="Services\DatabaseInitializer.cs" />
+    <Compile Include="Services\OrderService.cs" />
+    <Compile Include="Utils\UiTheme.cs" />
+    <Compile Include="Utils\ValidationHelper.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
