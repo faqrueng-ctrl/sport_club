@@ -17,12 +17,13 @@ namespace SportClubApp.Services
             using (var conn = Db.OpenConnection())
             using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = @"INSERT INTO dbo.Users(FullName,Email,Phone,[Password],Role)
-VALUES(@name,@email,@phone,@pass,N'Пользователь');";
+                cmd.CommandText = @"INSERT INTO dbo.Users(FullName,Email,Phone,[Password],RoleId)
+VALUES(@name,@email,@phone,@pass,@roleId);";
                 cmd.Parameters.AddWithValue("@name", fullName.Trim());
                 cmd.Parameters.AddWithValue("@email", email.Trim());
                 cmd.Parameters.AddWithValue("@phone", phone.Trim());
                 cmd.Parameters.AddWithValue("@pass", password);
+                cmd.Parameters.AddWithValue("@roleId", RoleCodes.User);
                 cmd.ExecuteNonQuery();
             }
         }
@@ -32,8 +33,9 @@ VALUES(@name,@email,@phone,@pass,N'Пользователь');";
             using (var conn = Db.OpenConnection())
             using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = @"SELECT TOP(1) Id,FullName,Email,Phone,Role,[Password]
-FROM dbo.Users WHERE Email=@login OR Phone=@login";
+                cmd.CommandText = @"SELECT TOP(1) u.Id,u.FullName,u.Email,u.Phone,u.RoleId,u.[Password]
+FROM dbo.Users u
+WHERE u.Email=@login OR u.Phone=@login";
                 cmd.Parameters.AddWithValue("@login", login.Trim());
 
                 using (var reader = cmd.ExecuteReader())
@@ -51,7 +53,7 @@ FROM dbo.Users WHERE Email=@login OR Phone=@login";
                         FullName = reader.GetString(reader.GetOrdinal("FullName")),
                         Email = reader.GetString(reader.GetOrdinal("Email")),
                         Phone = reader.GetString(reader.GetOrdinal("Phone")),
-                        Role = reader.GetString(reader.GetOrdinal("Role"))
+                        RoleId = reader["RoleId"] == DBNull.Value ? RoleCodes.User : Convert.ToInt32(reader["RoleId"])
                     };
                 }
             }

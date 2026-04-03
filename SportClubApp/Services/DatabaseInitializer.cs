@@ -1,4 +1,5 @@
 using SportClubApp.Data;
+using SportClubApp.Models;
 
 namespace SportClubApp.Services
 {
@@ -10,6 +11,18 @@ namespace SportClubApp.Services
             using (var cmd = connection.CreateCommand())
             {
                 cmd.CommandText = @"
+IF OBJECT_ID('dbo.Roles','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Roles(
+      Id INT NOT NULL PRIMARY KEY,
+      Name NVARCHAR(30) NOT NULL UNIQUE
+    );
+END
+
+IF NOT EXISTS(SELECT 1 FROM dbo.Roles WHERE Id = 1) INSERT INTO dbo.Roles(Id,Name) VALUES(1,N'Пользователь');
+IF NOT EXISTS(SELECT 1 FROM dbo.Roles WHERE Id = 2) INSERT INTO dbo.Roles(Id,Name) VALUES(2,N'Менеджер');
+IF NOT EXISTS(SELECT 1 FROM dbo.Roles WHERE Id = 3) INSERT INTO dbo.Roles(Id,Name) VALUES(3,N'Администратор');
+
 IF OBJECT_ID('dbo.Users','U') IS NULL
 BEGIN
     CREATE TABLE dbo.Users(
@@ -18,16 +31,27 @@ BEGIN
       Email NVARCHAR(120) NOT NULL UNIQUE,
       Phone NVARCHAR(40) NOT NULL UNIQUE,
       [Password] NVARCHAR(100) NOT NULL,
-      Role NVARCHAR(30) NOT NULL DEFAULT N'Пользователь',
+      RoleId INT NOT NULL DEFAULT 1 REFERENCES dbo.Roles(Id),
       CreatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME()
     );
+END
+
+IF COL_LENGTH('dbo.Users','RoleId') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD RoleId INT NULL;
+    UPDATE dbo.Users
+    SET RoleId = CASE
+        WHEN ISNULL([Role], N'Пользователь') = N'Администратор' THEN 3
+        WHEN ISNULL([Role], N'Пользователь') = N'Менеджер' THEN 2
+        ELSE 1 END
+    WHERE RoleId IS NULL;
 END
 
 IF COL_LENGTH('dbo.Users','Password') IS NULL
 BEGIN
     ALTER TABLE dbo.Users ADD [Password] NVARCHAR(100) NULL;
     UPDATE dbo.Users
-    SET [Password] = CASE WHEN Role = N'Администратор' THEN N'admin' ELSE N'123456' END
+    SET [Password] = CASE WHEN ISNULL(RoleId,1) = 3 THEN N'admin' ELSE N'123456' END
     WHERE [Password] IS NULL;
 END
 
@@ -77,10 +101,10 @@ BEGIN
     );
 END
 
-IF NOT EXISTS(SELECT 1 FROM dbo.Users WHERE Role = N'Администратор')
+IF NOT EXISTS(SELECT 1 FROM dbo.Users WHERE RoleId = 3)
 BEGIN
-    INSERT INTO dbo.Users (FullName,Email,Phone,[Password],Role)
-    VALUES (N'Главный Администратор',N'admin@sportclub.local',N'+70000000000',N'admin',N'Администратор');
+    INSERT INTO dbo.Users (FullName,Email,Phone,[Password],RoleId)
+    VALUES (N'Главный Администратор',N'admin@sportclub.local',N'+70000000000',N'admin',3);
 END
 
 IF NOT EXISTS(SELECT 1 FROM dbo.Products)

@@ -35,6 +35,7 @@
     <Compile Include="Models\CartItem.cs" />
     <Compile Include="Models\OrderHistoryItem.cs" />
     <Compile Include="Models\ProductItem.cs" />
+    <Compile Include="Models\RoleCodes.cs" />
     <Compile Include="Models\UserContext.cs" />
     <Compile Include="Services\AuthService.cs" />
     <Compile Include="Services\CatalogService.cs" />

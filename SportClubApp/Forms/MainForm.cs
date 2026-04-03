@@ -160,8 +160,9 @@ namespace SportClubApp.Forms
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             var panel = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(8) };
-            panel.Controls.Add(Btn("Сделать менеджером", (_, __) => ChangeUserRole("Менеджер")));
-            panel.Controls.Add(Btn("Сделать пользователем", (_, __) => ChangeUserRole("Пользователь")));
+            panel.Controls.Add(Btn("Роль 2 (Менеджер)", (_, __) => ChangeUserRole(RoleCodes.Manager)));
+            panel.Controls.Add(Btn("Роль 1 (Пользователь)", (_, __) => ChangeUserRole(RoleCodes.User)));
+            panel.Controls.Add(Btn("Роль 3 (Админ)", (_, __) => ChangeUserRole(RoleCodes.Administrator)));
             root.Controls.Add(panel, 0, 0);
             root.Controls.Add(_usersGrid, 0, 1);
             tab.Controls.Add(root);
@@ -220,7 +221,7 @@ namespace SportClubApp.Forms
                     if (p.Price > 1000)
                     {
                         row.DefaultCellStyle.BackColor = Color.LemonChiffon;
-                        row.DefaultCellStyle.Font = new Font(grid.Font, FontStyle.Bold);
+                        row.DefaultCellStyle.Font = new Font(grid.Font ?? Control.DefaultFont, FontStyle.Bold);
                     }
 
                     if (p.OldPrice.HasValue && p.DiscountPercent.HasValue && grid.Columns.Contains(nameof(ProductItem.OldPrice)))
@@ -237,9 +238,16 @@ namespace SportClubApp.Forms
             if (grid == null || string.IsNullOrWhiteSpace(col) || grid.Columns == null || !grid.Columns.Contains(col)) return;
             var column = grid.Columns[col];
             if (column == null) return;
-            column.HeaderText = title ?? col;
-            column.MinimumWidth = Math.Max(40, minWidth);
-            column.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            try
+            {
+                column.HeaderText = title ?? col;
+                column.MinimumWidth = Math.Max(40, minWidth);
+                column.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            }
+            catch
+            {
+                // ignore unstable column state during rebind
+            }
         }
 
         private void AddSelectedToCart()
@@ -297,7 +305,10 @@ namespace SportClubApp.Forms
             using (var conn = Data.Db.OpenConnection())
             using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = "SELECT Id,FullName,Email,Phone,Role,CreatedAt FROM dbo.Users ORDER BY Id";
+                cmd.CommandText = @"SELECT u.Id,u.FullName,u.Email,u.Phone,u.RoleId,r.Name AS RoleName,u.CreatedAt
+FROM dbo.Users u
+LEFT JOIN dbo.Roles r ON r.Id = u.RoleId
+ORDER BY u.Id";
                 var table = new System.Data.DataTable();
                 using (var da = new System.Data.SqlClient.SqlDataAdapter(cmd))
                 {
@@ -305,12 +316,14 @@ namespace SportClubApp.Forms
                 }
                 _usersGrid.DataSource = table;
                 if (_usersGrid.Columns.Contains("FullName")) _usersGrid.Columns["FullName"].HeaderText = "ФИО";
+                if (_usersGrid.Columns.Contains("RoleId")) _usersGrid.Columns["RoleId"].HeaderText = "Роль №";
+                if (_usersGrid.Columns.Contains("RoleName")) _usersGrid.Columns["RoleName"].HeaderText = "Роль";
                 if (_usersGrid.Columns.Contains("CreatedAt")) _usersGrid.Columns["CreatedAt"].HeaderText = "Создан";
                 _usersGrid.AutoResizeColumns(DataGridViewAutoSizeColumnsMode.AllCells);
             }
         }
 
-        private void ChangeUserRole(string role)
+        private void ChangeUserRole(int roleId)
         {
             if (!_user.IsAdmin || _usersGrid.CurrentRow == null) return;
             var id = Convert.ToInt32(_usersGrid.CurrentRow.Cells["Id"].Value);
@@ -319,8 +332,8 @@ namespace SportClubApp.Forms
                 using (var conn = Data.Db.OpenConnection())
                 using (var cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = "UPDATE dbo.Users SET Role=@r WHERE Id=@id";
-                    cmd.Parameters.AddWithValue("@r", role);
+                    cmd.CommandText = "UPDATE dbo.Users SET RoleId=@r WHERE Id=@id";
+                    cmd.Parameters.AddWithValue("@r", roleId);
                     cmd.Parameters.AddWithValue("@id", id);
                     cmd.ExecuteNonQuery();
                 }
