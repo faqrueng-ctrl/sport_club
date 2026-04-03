@@ -188,8 +188,15 @@ namespace SportClubApp.Forms
             var list = _catalogService.GetProducts(_search.Text, _sort.Text);
             _catalogGrid.DataSource = list;
             _managerGrid.DataSource = _catalogService.GetProducts(_search.Text, _sort.Text);
-            FormatProductGrid(_catalogGrid);
-            FormatProductGrid(_managerGrid);
+            try
+            {
+                FormatProductGrid(_catalogGrid);
+                FormatProductGrid(_managerGrid);
+            }
+            catch
+            {
+                // no-op: avoid UI crash on dynamic grid generation edge-cases
+            }
         }
 
         private static void FormatProductGrid(DataGridView grid)
@@ -218,7 +225,8 @@ namespace SportClubApp.Forms
 
                     if (p.OldPrice.HasValue && p.DiscountPercent.HasValue && grid.Columns.Contains(nameof(ProductItem.OldPrice)))
                     {
-                        row.Cells[nameof(ProductItem.OldPrice)].Style.Font = new Font(grid.Font, FontStyle.Strikeout);
+                        var cell = row.Cells[nameof(ProductItem.OldPrice)];
+                        if (cell != null) cell.Style.Font = new Font(grid.Font ?? Control.DefaultFont, FontStyle.Strikeout);
                     }
                 }
             }
@@ -226,10 +234,12 @@ namespace SportClubApp.Forms
 
         private static void SetHeader(DataGridView grid, string col, string title, int minWidth)
         {
-            if (!grid.Columns.Contains(col)) return;
-            grid.Columns[col].HeaderText = title;
-            grid.Columns[col].MinimumWidth = minWidth;
-            grid.Columns[col].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            if (grid == null || string.IsNullOrWhiteSpace(col) || grid.Columns == null || !grid.Columns.Contains(col)) return;
+            var column = grid.Columns[col];
+            if (column == null) return;
+            column.HeaderText = title ?? col;
+            column.MinimumWidth = Math.Max(40, minWidth);
+            column.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
         }
 
         private void AddSelectedToCart()
